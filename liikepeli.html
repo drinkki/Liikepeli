@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LiikePeli 🕹️</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;900&display=swap');
+
+  :root {
+    --bg: #0d0d1a;
+    --card: #16162a;
+    --accent1: #ff6b6b;
+    --accent2: #ffd93d;
+    --accent3: #6bcb77;
+    --accent4: #4d96ff;
+    --text: #f0f0ff;
+    --muted: #888aaa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Nunito', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    user-select: none;
+  }
+
+  /* Stars background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 80% 10%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 50% 80%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 10% 60%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 90% 70%, rgba(255,255,255,0.2) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #app {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    width: 100%;
+    padding: 16px 20px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(22,22,42,0.8);
+    backdrop-filter: blur(10px);
+    border-bottom: 2px solid rgba(255,107,107,0.3);
+  }
+
+  .logo {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.8rem;
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .score-box {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .score-item {
+    text-align: center;
+  }
+
+  .score-label {
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .score-value {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.4rem;
+    color: var(--accent2);
+    line-height: 1;
+  }
+
+  /* MAIN AREA */
+  main {
+    flex: 1;
+    width: 100%;
+    max-width: 600px;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* CAMERA */
+  .camera-container {
+    position: relative;
+    width: 100%;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 3px solid rgba(77,150,255,0.4);
+    box-shadow: 0 0 30px rgba(77,150,255,0.15);
+    background: #000;
+    aspect-ratio: 4/3;
+  }
+
+  #video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+    display: block;
+  }
+
+  #canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    transform: scaleX(-1);
+  }
+
+  .camera-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(13,13,26,0.85);
+    flex-direction: column;
+    gap: 12px;
+    z-index: 10;
+  }
+
+  .camera-overlay.hidden { display: none; }
+
+  .camera-overlay p {
+    font-size: 1rem;
+    color: var(--muted);
+    text-align: center;
+    padding: 0 20px;
+  }
+
+  /* STATUS BAR */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .status-dot.active { background: var(--accent3); box-shadow: 0 0 8px var(--accent3); }
+  .status-dot.searching { background: var(--accent2); animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .status-text {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  /* MOVE CARD */
+  .move-card {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 20px;
+    border: 2px solid rgba(255,255,255,0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+    min-height: 140px;
+    justify-content: center;
+  }
+
+  .move-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(from 0deg, transparent 0deg, rgba(77,150,255,0.05) 60deg, transparent 120deg);
+    animation: rotate 8s linear infinite;
+    pointer-events: none;
+  }
+
+  @keyframes rotate {
+    to { transform: rotate(360deg); }
+  }
+
+  .move-emoji {
+    font-size: 3.5rem;
+    line-height: 1;
+    animation: bounce 0.5s ease-in-out infinite alternate;
+  }
+
+  @keyframes bounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(-6px); }
+  }
+
+  .move-label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  .move-name {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2rem;
+    text-align: center;
+    color: var(--text);
+    line-height: 1.1;
+  }
+
+  .move-hint {
+    font-size: 0.85rem;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* TIMER BAR */
+  .timer-wrap {
+    position: relative;
+    height: 10px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .timer-bar {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.1s linear, background 0.3s;
+    background: var(--accent4);
+  }
+
+  /* SUCCESS FLASH */
+  .success-flash {
+    position: fixed;
+    inset: 0;
+    background: rgba(107,203,119,0.25);
+    pointer-events: none;
+    opacity: 0;
+    z-index: 100;
+    transition: opacity 0.15s;
+  }
+
+  .success-flash.show { opacity: 1; }
+
+  /* POINTS POPUP */
+  .points-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    font-family: 'Fredoka One', cursive;
+    font-size: 5rem;
+    color: var(--accent2);
+    text-shadow: 0 0 30px rgba(255,217,61,0.8);
+    z-index: 200;
+    pointer-events: none;
+    transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s;
+    opacity: 0;
+  }
+
+  .points-popup.show {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+
+  /* BUTTONS */
+  .btn {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.2rem;
+    padding: 14px 36px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    letter-spacing: 0.5px;
+  }
+
+  .btn:active { transform: scale(0.95); }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent1), #ff9a3c);
+    color: white;
+    box-shadow: 0 6px 20px rgba(255,107,107,0.4);
+  }
+
+  .btn-secondary {
+    background: rgba(255,255,255,0.1);
+    color: var(--text);
+    border: 2px solid rgba(255,255,255,0.15);
+  }
+
+  /* INSTRUCTIONS SCREEN */
+  .screen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 40px 24px;
+    transition: opacity 0.3s, transform 0.3s;
+  }
+
+  .screen.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.97);
+  }
+
+  .screen-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: 3rem;
+    text-align: center;
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .screen-emoji {
+    font-size: 5rem;
+  }
+
+  .screen p {
+    font-size: 1rem;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.6;
+    max-width: 320px;
+  }
+
+  .moves-preview {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .move-chip {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .final-score {
+    font-family: 'Fredoka One', cursive;
+    font-size: 5rem;
+    color: var(--accent2);
+    text-shadow: 0 0 40px rgba(255,217,61,0.5);
+    line-height: 1;
+  }
+
+  .streak-display {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    color: var(--accent2);
+  }
+
+  /* PROGRESS DOTS */
+  .progress-dots {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    transition: background 0.3s, transform 0.3s;
+  }
+
+  .dot.done { background: var(--accent3); transform: scale(1.2); }
+  .dot.current { background: var(--accent4); animation: pulse 1s infinite; }
+
+  .debug-info {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    font-size: 0.6rem;
+    color: rgba(255,255,255,0.3);
+    pointer-events: none;
+    z-index: 5;
+  }
+</style>
+</head>
+<body>
+
+<div class="success-flash" id="successFlash"></div>
+<div class="points-popup" id="pointsPopup">+100</div>
+
+<!-- START SCREEN -->
+<div class="screen" id="startScreen">
+  <div class="screen-emoji">🕺</div>
+  <div class="screen-title">LiikePeli!</div>
+  <p>Tee oikea liike kameran edessä ja kerää pisteitä! Varmista että koko keho näkyy kuvassa.</p>
+  <div class="moves-preview">
+    <div class="move-chip">🙋 Vasen käsi ylös</div>
+    <div class="move-chip">🤸 Molemmat kädet ylös</div>
+    <div class="move-chip">🦵 T-asento</div>
+    <div class="move-chip">🧎 Kyykky</div>
+  </div>
+  <button class="btn btn-primary" onclick="startGame()">Aloita peli! 🎮</button>
+</div>
+
+<!-- END SCREEN -->
+<div class="screen hidden" id="endScreen">
+  <div class="screen-emoji">🏆</div>
+  <div class="screen-title">Hienoa!</div>
+  <div class="final-score" id="finalScore">0</div>
+  <p>pistettä!</p>
+  <div class="streak-score" id="streakResult" style="color:var(--accent2);font-size:1rem"></div>
+  <button class="btn btn-primary" onclick="restartGame()" style="margin-top:8px">Pelaa uudelleen! 🔄</button>
+  <button class="btn btn-secondary" onclick="showStart()">Etusivu</button>
+</div>
+
+<!-- MAIN GAME UI -->
+<div id="app">
+  <header>
+    <div class="logo">LiikePeli</div>
+    <div class="score-box">
+      <div class="score-item">
+        <div class="score-label">Pisteet</div>
+        <div class="score-value" id="scoreDisplay">0</div>
+      </div>
+      <div class="score-item">
+        <div class="score-label">Putki 🔥</div>
+        <div class="score-value" id="streakDisplay">0</div>
+      </div>
+      <div class="score-item">
+        <div class="score-label">Aika</div>
+        <div class="score-value" id="timeDisplay">60</div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="camera-container">
+      <video id="video" playsinline autoplay muted></video>
+      <canvas id="canvas"></canvas>
+      <div class="camera-overlay" id="cameraOverlay">
+        <span style="font-size:3rem">📷</span>
+        <p>Ladataan hahmontunnistusta...</p>
+      </div>
+      <div class="debug-info" id="debugInfo"></div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-dot" id="statusDot"></div>
+      <span class="status-text" id="statusText">Odotetaan...</span>
+    </div>
+
+    <div class="timer-wrap">
+      <div class="timer-bar" id="timerBar" style="width:100%"></div>
+    </div>
+
+    <div class="progress-dots" id="progressDots"></div>
+
+    <div class="move-card" id="moveCard">
+      <div class="move-label">Tee tämä liike</div>
+      <div class="move-emoji" id="moveEmoji">🙋</div>
+      <div class="move-name" id="moveName">Vasen käsi ylös</div>
+      <div class="move-hint" id="moveHint">Nosta vasen käsi pään yläpuolelle</div>
+    </div>
+  </main>
+</div>
+
+<!-- MediaPipe + TensorFlow -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+
+<script>
+// ============================================================
+// GAME CONFIG
+// ============================================================
+const MOVES = [
+  {
+    id: 'left_hand_up',
+    emoji: '🙋',
+    name: 'Vasen käsi ylös!',
+    hint: 'Nosta vasen käsi pään yläpuolelle',
+    points: 100,
+    timeLimit: 5000,
+    check: (lm) => {
+      // Left wrist (15) higher than left shoulder (11)
+      const wrist = lm[15], shoulder = lm[11], nose = lm[0];
+      if (!wrist || !shoulder || !nose) return false;
+      return wrist.y < nose.y && wrist.visibility > 0.5 && shoulder.visibility > 0.5;
+    }
+  },
+  {
+    id: 'right_hand_up',
+    emoji: '🤚',
+    name: 'Oikea käsi ylös!',
+    hint: 'Nosta oikea käsi pään yläpuolelle',
+    points: 100,
+    timeLimit: 5000,
+    check: (lm) => {
+      const wrist = lm[16], shoulder = lm[12], nose = lm[0];
+      if (!wrist || !shoulder || !nose) return false;
+      return wrist.y < nose.y && wrist.visibility > 0.5 && shoulder.visibility > 0.5;
+    }
+  },
+  {
+    id: 'both_hands_up',
+    emoji: '🙌',
+    name: 'Molemmat kädet ylös!',
+    hint: 'Nosta molemmat kädet pään yläpuolelle',
+    points: 150,
+    timeLimit: 6000,
+    check: (lm) => {
+      const lWrist = lm[15], rWrist = lm[16], nose = lm[0];
+      if (!lWrist || !rWrist || !nose) return false;
+      return lWrist.y < nose.y && rWrist.y < nose.y &&
+             lWrist.visibility > 0.5 && rWrist.visibility > 0.5;
+    }
+  },
+  {
+    id: 't_pose',
+    emoji: '✈️',
+    name: 'T-asento!',
+    hint: 'Levitä molemmat kädet suoraan sivulle',
+    points: 150,
+    timeLimit: 7000,
+    check: (lm) => {
+      const lWrist = lm[15], rWrist = lm[16];
+      const lShoulder = lm[11], rShoulder = lm[12];
+      if (!lWrist || !rWrist || !lShoulder || !rShoulder) return false;
+      // Wrists should be at roughly the same height as shoulders (±0.1)
+      const lOk = Math.abs(lWrist.y - lShoulder.y) < 0.12 && lWrist.visibility > 0.5;
+      const rOk = Math.abs(rWrist.y - rShoulder.y) < 0.12 && rWrist.visibility > 0.5;
+      // And wrists should be further apart than shoulders
+      const wristDist = Math.abs(lWrist.x - rWrist.x);
+      const shoulderDist = Math.abs(lShoulder.x - rShoulder.x);
+      return lOk && rOk && wristDist > shoulderDist * 1.5;
+    }
+  },
+  {
+    id: 'squat',
+    emoji: '🧎',
+    name: 'Kyykkyyn!',
+    hint: 'Mene kyykkyyn — polvet koukkuun',
+    points: 200,
+    timeLimit: 8000,
+    check: (lm) => {
+      const lHip = lm[23], rHip = lm[24];
+      const lKnee = lm[25], rKnee = lm[26];
+      const lAnkle = lm[27], rAnkle = lm[28];
+      if (!lHip || !rHip || !lKnee || !rKnee) return false;
+      if (lHip.visibility < 0.5 || lKnee.visibility < 0.5) return false;
+      // Hip should be close to knee level (squat = hip drops)
+      const hipY = (lHip.y + rHip.y) / 2;
+      const kneeY = (lKnee.y + rKnee.y) / 2;
+      return hipY > kneeY - 0.1 && hipY < kneeY + 0.15;
+    }
+  },
+  {
+    id: 'hands_on_hips',
+    emoji: '🦸',
+    name: 'Kädet lanteilla!',
+    hint: 'Laita molemmat kädet lanteille',
+    points: 120,
+    timeLimit: 6000,
+    check: (lm) => {
+      const lWrist = lm[15], rWrist = lm[16];
+      const lHip = lm[23], rHip = lm[24];
+      if (!lWrist || !rWrist || !lHip || !rHip) return false;
+      const lOk = Math.abs(lWrist.y - lHip.y) < 0.1 && lWrist.visibility > 0.5;
+      const rOk = Math.abs(rWrist.y - rHip.y) < 0.1 && rWrist.visibility > 0.5;
+      return lOk && rOk;
+    }
+  }
+];
+
+// ============================================================
+// GAME STATE
+// ============================================================
+let score = 0;
+let streak = 0;
+let gameActive = false;
+let gameTime = 60;
+let gameTimer = null;
+let currentMoveIdx = 0;
+let moveQueue = [];
+let moveStartTime = 0;
+let moveCooldown = false;
+let lastLandmarks = null;
+let poseReady = false;
+let holdStart = null;
+const HOLD_DURATION = 800; // ms to hold pose
+
+// ============================================================
+// UI ELEMENTS
+// ============================================================
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const cameraOverlay = document.getElementById('cameraOverlay');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const scoreDisplay = document.getElementById('scoreDisplay');
+const streakDisplay = document.getElementById('streakDisplay');
+const timeDisplay = document.getElementById('timeDisplay');
+const timerBar = document.getElementById('timerBar');
+const moveEmoji = document.getElementById('moveEmoji');
+const moveName = document.getElementById('moveName');
+const moveHint = document.getElementById('moveHint');
+const successFlash = document.getElementById('successFlash');
+const pointsPopup = document.getElementById('pointsPopup');
+const progressDots = document.getElementById('progressDots');
+const debugInfo = document.getElementById('debugInfo');
+const startScreen = document.getElementById('startScreen');
+const endScreen = document.getElementById('endScreen');
+
+// ============================================================
+// MEDIAPIPE SETUP
+// ============================================================
+let pose;
+let cameraUtil;
+
+async function initPose() {
+  pose = new Pose({
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+  });
+
+  pose.setOptions({
+    modelComplexity: 1,
+    smoothLandmarks: true,
+    enableSegmentation: false,
+    smoothSegmentation: false,
+    minDetectionConfidence: 0.6,
+    minTrackingConfidence: 0.5
+  });
+
+  pose.onResults(onPoseResults);
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false
+    });
+
+    video.srcObject = stream;
+    video.onloadedmetadata = () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    };
+
+    cameraUtil = new Camera(video, {
+      onFrame: async () => {
+        if (pose) await pose.send({ image: video });
+      },
+      width: 640,
+      height: 480
+    });
+
+    await cameraUtil.start();
+    poseReady = true;
+    cameraOverlay.classList.add('hidden');
+    statusDot.className = 'status-dot searching';
+    statusText.textContent = 'Etsitään hahmoa...';
+
+  } catch (err) {
+    cameraOverlay.querySelector('p').textContent = 'Kamera ei ole käytettävissä. Tarkista selainluvat.';
+    console.error(err);
+  }
+}
+
+function onPoseResults(results) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!results.poseLandmarks) {
+    lastLandmarks = null;
+    if (gameActive) {
+      statusDot.className = 'status-dot searching';
+      statusText.textContent = 'Asetu kameran eteen...';
+    }
+    return;
+  }
+
+  lastLandmarks = results.poseLandmarks;
+
+  // Draw skeleton
+  drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
+    color: 'rgba(77,150,255,0.6)', lineWidth: 2
+  });
+  drawLandmarks(ctx, results.poseLandmarks, {
+    color: 'rgba(255,107,107,0.8)', lineWidth: 1, radius: 4
+  });
+
+  if (gameActive) {
+    statusDot.className = 'status-dot active';
+    statusText.textContent = 'Hahmo tunnistettu ✓';
+    checkCurrentMove();
+  }
+}
+
+// ============================================================
+// MOVE CHECKING
+// ============================================================
+let holdProgress = 0;
+let holdAnimFrame = null;
+
+function checkCurrentMove() {
+  if (!lastLandmarks || !gameActive || moveCooldown) return;
+  const move = moveQueue[currentMoveIdx];
+  if (!move) return;
+
+  const detected = move.check(lastLandmarks);
+
+  // Debug
+  // debugInfo.textContent = `move: ${move.id} | detected: ${detected}`;
+
+  if (detected) {
+    if (holdStart === null) holdStart = Date.now();
+    const held = Date.now() - holdStart;
+    holdProgress = Math.min(held / HOLD_DURATION, 1);
+    drawHoldProgress(holdProgress);
+
+    if (held >= HOLD_DURATION) {
+      onMoveSuccess(move);
+    }
+  } else {
+    holdStart = null;
+    holdProgress = 0;
+  }
+}
+
+function drawHoldProgress(p) {
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const r = 40;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * p);
+  ctx.strokeStyle = `rgba(107, 203, 119, ${0.5 + p * 0.5})`;
+  ctx.lineWidth = 6;
+  ctx.stroke();
+}
+
+// ============================================================
+// GAME LOGIC
+// ============================================================
+function buildMoveQueue(count = 10) {
+  const q = [];
+  let lastId = null;
+  for (let i = 0; i < count; i++) {
+    let m;
+    do { m = MOVES[Math.floor(Math.random() * MOVES.length)]; }
+    while (m.id === lastId);
+    q.push(m);
+    lastId = m.id;
+  }
+  return q;
+}
+
+function startGame() {
+  startScreen.classList.add('hidden');
+  endScreen.classList.add('hidden');
+  score = 0;
+  streak = 0;
+  gameTime = 60;
+  currentMoveIdx = 0;
+  moveQueue = buildMoveQueue(10);
+  gameActive = true;
+  holdStart = null;
+  moveCooldown = false;
+
+  updateScoreUI();
+  renderProgressDots();
+  showCurrentMove();
+  startGameTimer();
+
+  if (!poseReady) initPose();
+}
+
+function startGameTimer() {
+  clearInterval(gameTimer);
+  gameTimer = setInterval(() => {
+    gameTime--;
+    timeDisplay.textContent = gameTime;
+    timerBar.style.width = (gameTime / 60 * 100) + '%';
+    if (gameTime <= 10) timerBar.style.background = 'var(--accent1)';
+    else if (gameTime <= 20) timerBar.style.background = 'var(--accent2)';
+    else timerBar.style.background = 'var(--accent4)';
+
+    if (gameTime <= 0) endGame();
+  }, 1000);
+}
+
+function showCurrentMove() {
+  if (currentMoveIdx >= moveQueue.length) {
+    endGame(); return;
+  }
+  const move = moveQueue[currentMoveIdx];
+  moveEmoji.textContent = move.emoji;
+  moveName.textContent = move.name;
+  moveHint.textContent = move.hint;
+  holdStart = null;
+  moveCooldown = false;
+  renderProgressDots();
+}
+
+function onMoveSuccess(move) {
+  moveCooldown = true;
+  holdStart = null;
+
+  const multiplier = Math.min(streak + 1, 5);
+  const earned = move.points * multiplier;
+  score += earned;
+  streak++;
+
+  updateScoreUI();
+  showSuccess(earned);
+
+  currentMoveIdx++;
+  if (currentMoveIdx >= moveQueue.length) {
+    moveQueue = [...moveQueue, ...buildMoveQueue(5)];
+  }
+
+  setTimeout(() => showCurrentMove(), 600);
+}
+
+function showSuccess(pts) {
+  successFlash.classList.add('show');
+  pointsPopup.textContent = '+' + pts;
+  pointsPopup.classList.add('show');
+  setTimeout(() => {
+    successFlash.classList.remove('show');
+    pointsPopup.classList.remove('show');
+  }, 700);
+}
+
+function updateScoreUI() {
+  scoreDisplay.textContent = score;
+  streakDisplay.textContent = streak;
+}
+
+function renderProgressDots() {
+  progressDots.innerHTML = '';
+  const show = Math.min(moveQueue.length, 8);
+  for (let i = 0; i < show; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    if (i < currentMoveIdx) d.classList.add('done');
+    else if (i === currentMoveIdx) d.classList.add('current');
+    progressDots.appendChild(d);
+  }
+}
+
+function endGame() {
+  clearInterval(gameTimer);
+  gameActive = false;
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('streakResult').textContent =
+    streak >= 5 ? `🔥 Paras putki: ${streak} liikettä!` : `Putki: ${streak}`;
+  endScreen.classList.remove('hidden');
+}
+
+function restartGame() {
+  endScreen.classList.add('hidden');
+  startGame();
+}
+
+function showStart() {
+  endScreen.classList.add('hidden');
+  startScreen.classList.remove('hidden');
+}
+
+// Start loading pose on page load
+initPose();
+</script>
+</body>
+</html>
